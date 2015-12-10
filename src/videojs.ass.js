@@ -8,6 +8,8 @@
   var vjs_ass = function (options) {
     var overlay = document.createElement('div'),
       AssButton = null,
+      VjsButton = null,
+      AssButtonInstance = null,
       clock = null,
       clockRate = options.rate || 1,
       delay = options.delay || 0,
@@ -105,21 +107,37 @@
 
     // Visibility Toggle Button
     if (!options.hasOwnProperty('button') || options.button) {
-      AssButton = videojs.Button.extend();
 
-      AssButton.prototype.onClick = function () {
-        if (!this.hasClass('inactive')) {
-          this.addClass('inactive');
-          overlay.style.display = "none";
-        } else {
-          this.removeClass('inactive');
-          overlay.style.display = "";
+      VjsButton = videojs.getComponent('Button');
+      AssButton = videojs.extend(VjsButton, {
+        constructor: function (player, options) {
+          options.name = options.name || 'assToggleButton';
+          VjsButton.call(this, player, options);
+
+          this.addClass('vjs-ass-button');
+
+          this.on('click', this.onClick);
+        },
+        onClick: function () {
+          if (!this.hasClass('inactive')) {
+            this.addClass('inactive');
+            overlay.style.display = "none";
+          } else {
+            this.removeClass('inactive');
+            overlay.style.display = "";
+          }
         }
-      };
+      });
 
-      player.controlBar.el().appendChild(
-        new AssButton(this, { 'el': createAssButton() }).el()
-      );
+      player.ready(function () {
+        AssButtonInstance = new AssButton(player, options);
+        player.controlBar.addChild(AssButtonInstance);
+        player.controlBar.el().insertBefore(
+          AssButtonInstance.el(),
+          player.controlBar.getChild('customControlSpacer').el()
+        );
+      });
+
     }
   };
 
