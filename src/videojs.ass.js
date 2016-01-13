@@ -66,10 +66,9 @@
       clock.disable();
     });
 
-    subsRequest.open("GET", options.src, true);
-    subsRequest.addEventListener("load", function () {
+    var dataURIoption = function (subtitles) {
       var assPromise = libjass.ASS.fromString(
-        subsRequest.responseText,
+        subtitles,
         libjass.Format.ASS
       );
 
@@ -90,10 +89,24 @@
           };
         }
       );
-    }, false);
+    }
 
-    subsRequest.send(null);
+    if (options.src[0].substr(0,4) === "data") {
+       var dataUri = options.src[0],
+           offSet = dataUri.indexOf("base64,");
+       if (offSet > -1) { 
+         dataURIoption(atob(dataUri.substr(7+offSet)));
+       } else {
+         // TODO exception here!!!
+       }
+    } else {
+      subsRequest.open("GET", options.src, true);
+      subsRequest.addEventListener("load", function() {
+        dataURIoption(subsRequest.responseText);
+      }, false);
 
+      subsRequest.send(null);
+    }
     function createAssButton() {
       var props = {
         className: 'vjs-ass-button vjs-control',
