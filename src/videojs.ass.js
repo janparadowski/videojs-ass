@@ -95,7 +95,7 @@
        var dataUri = options.src[0],
            offSet = dataUri.indexOf("base64,");
        if (offSet > -1) { 
-         dataURIoption(atob(dataUri.substr(7+offSet)));
+         dataURIoption(decodeURIComponent(escape(atob(dataUri.substr(7+offSet)))));
        } else {
          // TODO exception here!!!
        }
