@@ -95,6 +95,7 @@
       window.removeEventListener('resize', updateDisplayArea);
     });
 
+    /*
     var dataURIoption = function (subtitles) {
       var assPromise = libjass.ASS.fromString(
         subtitles,
@@ -147,7 +148,6 @@
       return videojs.Component.prototype.createEl('div', props);
     }
 
-
     // Visibility Toggle Button
     if (!options.hasOwnProperty('button') || options.button) {
 
@@ -181,6 +181,8 @@
         );
       });
     }
+    */
+
 
     tracks.on('change', function () {
       if (isTrackSwitching) {
@@ -197,24 +199,22 @@
       } else {
         overlay.style.display = 'none';
       }
-    })
+    });
 
     function getASSPromise(data) {
       if (data[0].substr(0,4) === "data") {
-        var dataUri = data[0],
-          offSet = dataUri.indexOf("base64,");
+        var dataUri = data[0], offSet = dataUri.indexOf("base64,");
         if (offSet > -1) { 
           return libjass.ASS.fromString(
             decodeURIComponent(escape(atob(dataUri.substr(7+offSet)))),
             libjass.Format.ASS
           );
         } else {
-          return libjass.ASS.fromUrl(
-            data,
-            libjass.Format.ASS
-          );
+          // TODO raise an exception
         }
-
+      } else {
+         return libjass.ASS.fromUrl(data, libjass.Format.ASS);
+      }
     }
 
     rendererSettings = new libjass.renderers.RendererSettings();
