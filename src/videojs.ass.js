@@ -232,7 +232,7 @@
 
         addTrack(options.src, { label: options.label, srclang: options.srclang, switchImmediately: true });
         renderers[cur_id] = new libjass.renderers.WebRenderer(ass, clocks[cur_id], overlay, rendererSettings);
-      };
+      }
     );
 
     function addTrack(url, opts) {
