@@ -1,14 +1,16 @@
 /*! videojs-ass
  * Copyright (c) 2014 Sunny Li
- * Licensed under the Apache-2.0 license. */
+ * Licensed under the Apache-2.0 license. 
+ 
+ Added workaround for Safari not dealing with data uri strings (so doing them manually).
+ Renamed some variables here and there.
+ 
+ */
 
 (function (videojs, libjass) {
   'use strict';
 
-  var vjs_ass = function (options) {
-    var AssButton = null,
-      VjsButton = null,
-      AssButtonInstance = null;
+  var vjs_subs = function (options) {
     var cur_id = 0,
       id_count = 0,
       overlay = document.createElement('div'),
@@ -19,7 +21,7 @@
       renderers = [],
       rendererSettings = null,
       OverlayComponent = null,
-      assTrackIdMap = {},
+      subTrackIdMap = {},
       tracks = player.textTracks(),
       isTrackSwitching = false;
 
@@ -27,11 +29,11 @@
       return;
     }
 
-    overlay.className = 'vjs-ass';
+    overlay.className = 'vjs-subs';
 
     OverlayComponent = {
       name: function () {
-        return 'AssOverlay';
+        return 'SubsOverlay';
       },
       el: function () {
         return overlay;
@@ -80,7 +82,7 @@
           subsWrapperTop = (videoOffsetHeight - subsWrapperHeight) / 2;
 
         renderers[cur_id].resize(subsWrapperWidth, subsWrapperHeight, subsWrapperLeft, subsWrapperTop);
-      }, 100);
+      }, 500);
     }
 
     window.addEventListener('resize', updateDisplayArea);
@@ -95,96 +97,9 @@
       window.removeEventListener('resize', updateDisplayArea);
     });
 
-    /*
-    var dataURIoption = function (subtitles) {
-      var assPromise = libjass.ASS.fromString(
-        subtitles,
-        libjass.Format.ASS
-      );
-
-      assPromise.then(
-        function (ass) {
-          var rendererSettings = new libjass.renderers.RendererSettings();
-          if (options.hasOwnProperty('enableSvg')) {
-            rendererSettings.enableSvg = options.enableSvg;
-          }
-
-          renderer = new libjass.renderers.WebRenderer(ass, clock, overlay, rendererSettings);
-          updateDisplayArea();
-
-          // accessible through internal videojs plugins property
-          options.internal = {
-            clock: clock,
-            renderer: renderer
-          };
-        }
-      );
-    }
-
-    if (options.src[0].substr(0,4) === "data") {
-       var dataUri = options.src[0],
-           offSet = dataUri.indexOf("base64,");
-       if (offSet > -1) { 
-         dataURIoption(decodeURIComponent(escape(atob(dataUri.substr(7+offSet)))));
-       } else {
-         // TODO exception here!!!
-       }
-    } else {
-      subsRequest.open("GET", options.src, true);
-      subsRequest.addEventListener("load", function() {
-        dataURIoption(subsRequest.responseText);
-      }, false);
-
-      subsRequest.send(null);
-    }
-    function createAssButton() {
-      var props = {
-        className: 'vjs-ass-button vjs-control',
-        role: 'button',
-        'aria-label': 'ASS subtitle toggle',
-        'aria-live': 'polite',
-        tabIndex: 0
-      };
-      return videojs.Component.prototype.createEl('div', props);
-    }
-
-    // Visibility Toggle Button
-    if (!options.hasOwnProperty('button') || options.button) {
-
-      VjsButton = videojs.getComponent('Button');
-      AssButton = videojs.extend(VjsButton, {
-        constructor: function (player, options) {
-          options.name = options.name || 'assToggleButton';
-          VjsButton.call(this, player, options);
-
-          this.addClass('vjs-ass-button');
-
-          this.on('click', this.onClick);
-        },
-        onClick: function () {
-          if (!this.hasClass('inactive')) {
-            this.addClass('inactive');
-            overlay.style.display = "none";
-          } else {
-            this.removeClass('inactive');
-            overlay.style.display = "";
-          }
-        }
-      });
-
-      player.ready(function () {
-        AssButtonInstance = new AssButton(player, options);
-        player.controlBar.addChild(AssButtonInstance);
-        player.controlBar.el().insertBefore(
-          AssButtonInstance.el(),
-          player.controlBar.getChild('customControlSpacer').el()
-        );
-      });
-    }
-    */
-
-
-    tracks.on('change', function () {
+    tracks.on('change', function (event) {
+      var paused = player.paused();
+      player.pause();
       if (isTrackSwitching) {
         return;
       }
@@ -195,31 +110,32 @@
 
       if (activeTrack) {
         overlay.style.display = '';
-        switchTrackTo(assTrackIdMap[activeTrack.language + activeTrack.label]);
+        switchTrackTo(subTrackIdMap[activeTrack.language + activeTrack.label]);
       } else {
         overlay.style.display = 'none';
       }
+      
+      if (!paused) player.play();
     });
 
-    function getASSPromise(data) {
-      if (data[0].substr(0,4) === "data") {
+    function getSubPromise(data) {
+      if (data.length && data[0].substr(0,4) === "data") {
         var dataUri = data[0], offSet = dataUri.indexOf("base64,");
         if (offSet > -1) { 
           return libjass.ASS.fromString(
-            decodeURIComponent(escape(atob(dataUri.substr(7+offSet)))),
-            libjass.Format.ASS
+              decodeURIComponent(escape(atob(dataUri.substr(7+offSet)))),
+              libjass.Format.ASS
           );
         } else {
-          // TODO raise an exception
+          console.error("Expected a base64 encoded data uri string");
         }
       } else {
-         return libjass.ASS.fromUrl(data, libjass.Format.ASS);
+        return libjass.ASS.fromUrl(data, libjass.Format.ASS);
       }
     }
 
     rendererSettings = new libjass.renderers.RendererSettings();
-    getASSPromise(options.src, libjass.Format.ASS).then(
-      function (ass) {
+    getSubPromise(options.src, libjass.Format.ASS).then(function(sub) {
         if (options.hasOwnProperty('enableSvg')) {
           rendererSettings.enableSvg = options.enableSvg;
         }
@@ -230,27 +146,28 @@
             .makeFontMapFromStyleElement(document.getElementById(options.fontMapById));
         }
 
-        addTrack(options.src, { label: options.label, srclang: options.srclang, switchImmediately: true });
-        renderers[cur_id] = new libjass.renderers.WebRenderer(ass, clocks[cur_id], overlay, rendererSettings);
-      }
-    );
+        addTrack(options.src, { label: options.label, srclang: options.srclang, 
+                                switchImmediately: true && !options.unselectedInitially, 
+                                unselectedInitially: options.unselectedInitially });
+        renderers[cur_id] = new libjass.renderers.WebRenderer(sub, clocks[cur_id], overlay, rendererSettings);
+    });
 
     function addTrack(url, opts) {
       var newTrack = player.addRemoteTextTrack({
         src: "",
         kind: 'subtitles',
-        label: opts.label || 'ASS #' + cur_id,
-        srclang: opts.srclang || 'vjs-ass-' + cur_id,
-        default: opts.switchImmediately
-      });
+        label: opts.label || 'SUB #' + cur_id,
+        srclang: opts.srclang || 'vjs-subs-' + cur_id,
+        default: opts.switchImmediately,
+      }, false);
 
-      assTrackIdMap[newTrack.srclang + newTrack.label] = cur_id;
+      subTrackIdMap[newTrack.srclang + newTrack.label] = cur_id;
 
-      if(!opts.switchImmediately) {
+      if (!opts.switchImmediately) {
         // fix multiple track selected highlight issue
         for (var t = 0; t < tracks.length; t++) {
           if (tracks[t].mode === "showing") {
-            tracks[t].mode = "showing";
+            tracks[t].mode = "disabled";
           }
         }
         return;
@@ -259,7 +176,7 @@
       isTrackSwitching = true;
       for (var t = 0; t < tracks.length; t++) {
         if (tracks[t].label == newTrack.label && tracks[t].language == newTrack.srclang) {
-          if (tracks[t].mode !== "showing") {
+          if (tracks[t].mode !== "showing" && !opts.unselectedInitially) {
             tracks[t].mode = "showing";
           }
         } else {
@@ -277,8 +194,8 @@
       renderers[cur_id].clock.disable();
 
       cur_id = selected_track_id;
-      if (cur_id == undefined) {
-        // case when we switche to regular non ASS closed captioning
+      if (cur_id === undefined) {
+        // case when we switch to regular closed-captioning
         return;
       }
 
@@ -298,11 +215,11 @@
         renderers[cur_id].clock.disable();
       }
 
-      getASSPromise(url).then(
-        function (ass) {
+      getSubPromise(url).then(
+        function (sub) {
           cur_id = ++id_count;
           clocks[cur_id] = new libjass.renderers.AutoClock(getCurrentTime, 500);
-          renderers[cur_id] = new libjass.renderers.WebRenderer(ass, clocks[cur_id], overlay, rendererSettings);
+          renderers[cur_id] = new libjass.renderers.WebRenderer(sub, clocks[cur_id], overlay, rendererSettings);
           updateDisplayArea();
 
           if (switchImmediately) {
@@ -327,5 +244,6 @@
     };
   };
 
-  videojs.plugin('ass', vjs_ass);
+  videojs.plugin('subs', vjs_subs);
 }(window.videojs, window.libjass));
+
