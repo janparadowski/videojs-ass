@@ -145,11 +145,18 @@
           rendererSettings.fontMap = libjass.renderers.RendererSettings
             .makeFontMapFromStyleElement(document.getElementById(options.fontMapById));
         }
-
+        
+        /* options.unselectedInitially is to turn off subs when the player starts the first time */
         addTrack(options.src, { label: options.label, srclang: options.srclang, 
-                                switchImmediately: true && !options.unselectedInitially, 
+                                switchImmediately: !options.unselectedInitially, 
                                 unselectedInitially: options.unselectedInitially });
         renderers[cur_id] = new libjass.renderers.WebRenderer(sub, clocks[cur_id], overlay, rendererSettings);
+        if (options.unselectedInitially) {
+          overlay.style.display = '';
+          renderers[cur_id]._removeAllSubs();
+          renderers[cur_id]._preRenderedSubs.clear();
+          renderers[cur_id].clock.disable();
+        }
     });
 
     function addTrack(url, opts) {
