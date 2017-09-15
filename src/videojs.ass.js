@@ -4,7 +4,7 @@
  
  Added workaround for Safari not dealing with data uri strings (so doing them manually).
  Renamed some variables here and there.
- 
+ Pause on track change as a workaround for track changes not taking otherwise 
  */
 
 (function (videojs, libjass) {
